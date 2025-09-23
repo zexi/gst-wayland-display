@@ -26,6 +26,8 @@ impl TryFrom<DrmNode> for GPUDevice {
     type Error = Box<dyn std::error::Error>;
     fn try_from(drm_node: DrmNode) -> Result<Self, Self::Error> {
         let devices = enumerate_gpu_devices()?;
+        println!("=== drm_node: {:?}", drm_node);
+        println!("=== devices: {:?}", devices);
         if let Some(device) = devices.iter().find(|d| d.drm_node == drm_node) {
             Ok(device.clone())
         } else {
@@ -48,6 +50,7 @@ pub fn enumerate_gpu_devices() -> Result<Vec<GPUDevice>, Box<dyn Error>> {
         .filter(|dev| !dev.is_software())
         .map(|dev| -> Result<GPUDevice, Box<dyn Error>> {
             let drm_path = dev.drm_device_path()?;
+            println!("=== drm_path: {:?}", drm_path);
             let drm_node = DrmNode::from_path(drm_path)?;
             let minor = drm_node.minor();
             let vendor_str =
@@ -58,6 +61,7 @@ pub fn enumerate_gpu_devices() -> Result<Vec<GPUDevice>, Box<dyn Error>> {
             let device_id =
                 std::fs::read_to_string(format!("/sys/class/drm/card{}/device/device", minor))?;
             let device_id = device_id.trim_start_matches("0x").trim_end_matches('\n');
+            println!("=== dev: {:?}, vendor_str: {:?}, device_id: {:?}", dev, vendor_str, device_id);
 
             // Look up in hwdata PCI database
             let device_name = match std::fs::read_to_string("/usr/share/hwdata/pci.ids") {
@@ -67,6 +71,7 @@ pub fn enumerate_gpu_devices() -> Result<Vec<GPUDevice>, Box<dyn Error>> {
                     "".to_owned()
                 }
             };
+            println!("=== device_name: {:?}", device_name);
 
             Ok(GPUDevice {
                 drm_node,
