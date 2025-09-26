@@ -26,6 +26,7 @@ impl TryFrom<DrmNode> for GPUDevice {
     type Error = Box<dyn std::error::Error>;
     fn try_from(drm_node: DrmNode) -> Result<Self, Self::Error> {
         let devices = enumerate_gpu_devices()?;
+        println!("=== devices: {:?}, drm_node: {:?}", devices, drm_node);
         if let Some(device) = devices.iter().find(|d| d.drm_node == drm_node) {
             Ok(device.clone())
         } else {
@@ -49,6 +50,7 @@ pub fn enumerate_gpu_devices() -> Result<Vec<GPUDevice>, Box<dyn std::error::Err
     let instance = Instance::new(Version::VERSION_1_1, None)?;
 
     for p_dev in PhysicalDevice::enumerate(&instance)? {
+        // println!("=== p_dev: {:?}", p_dev);
         // Add only devices that support DrmNode (filters out software devices)
         let drm_node: DrmNode = if let Ok(render_node) = p_dev.render_node()
             && let Some(render_node) = render_node

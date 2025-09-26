@@ -1,3 +1,5 @@
+use test_log::test;
+
 #[test]
 fn test_enumerate_gpu_devices() {
     use crate::utils::device::gpu::enumerate_gpu_devices;
@@ -17,6 +19,6 @@ fn test_enumerate_gpu_devices() {
         // Ensure the device name is not empty
         assert!(!device.device_name().is_empty(), "Device name is empty");
 
-        tracing::info!("Found GPU: {}", device);
+        tracing::info!("Found GPU: {}, drm_node: {}, device_name: {}", device, device.drm_node(), device.device_name());
     }
 }

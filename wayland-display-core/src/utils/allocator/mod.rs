@@ -49,24 +49,61 @@ pub struct GsDmaBuf {
 }
 
 pub fn new_gbm_device(render_node: DrmNode) -> Option<GbmDevice<DeviceFd>> {
-    let file = File::options()
+    let device_path = render_node.dev_path()?;
+    tracing::debug!("Attempting to open DRM device: {:?}", device_path);
+    
+    let file = match File::options()
         .read(true)
         .write(true)
-        .open(render_node.dev_path()?.as_path())
-        .ok()?;
+        .open(device_path.as_path())
+    {
+        Ok(file) => file,
+        Err(e) => {
+            tracing::error!("Failed to open DRM device {:?}: {}", device_path, e);
+            return None;
+        }
+    };
+    
     let fd = DeviceFd::from(Into::<OwnedFd>::into(file));
-    GbmDevice::new(fd).ok()
+    match GbmDevice::new(fd) {
+        Ok(gbm_device) => {
+            tracing::debug!("Successfully created GBM device for {:?}", device_path);
+            Some(gbm_device)
+        }
+        Err(e) => {
+            tracing::error!("Failed to create GBM device for {:?}: {}", device_path, e);
+            None
+        }
+    }
 }
 
 impl GsDmaBuf {
     pub fn new(render_node: DrmNode, video_info: VideoInfoDmaDrm) -> Option<Self> {
         tracing::debug!("Creating DMA buffer from {:?}", &video_info);
-        let drm_fourcc = gst_video_format_to_drm_fourcc(&video_info)?;
-        let mut drm_modifier = gst_video_format_to_drm_modifier(&video_info)?;
+        tracing::info!("Attempting to create DMA buffer for render_node: {:?}", render_node);
+        
+        let drm_fourcc = match gst_video_format_to_drm_fourcc(&video_info) {
+            Some(fourcc) => fourcc,
+            None => {
+                tracing::error!("Failed to convert video format {:?} to DRM fourcc", video_info.format());
+                return None;
+            }
+        };
+        
+        let mut drm_modifier = match gst_video_format_to_drm_modifier(&video_info) {
+            Some(modifier) => modifier,
+            None => {
+                tracing::error!("Failed to convert video format {:?} to DRM modifier", video_info.format());
+                return None;
+            }
+        };
+        
         tracing::info!(
-            "Creating DMA buffer - DrmFourcc: {:?}, Modifier: {:?}",
+            "Creating DMA buffer - DrmFourcc: {:?}, Modifier: {:?}, Size: {}x{}",
             drm_fourcc,
-            drm_modifier
+            drm_modifier,
+            video_info.width(),
+            video_info.height()
         );
 
         // NOTE: This is a workaround for the i915 4-tiled modifiers
@@ -80,11 +117,30 @@ impl GsDmaBuf {
             workaround_modifier = Some(DrmModifier::Unrecognized(0x0100000000000009));
         }
 
-        let gbm = new_gbm_device(render_node)?;
+        let gbm = match new_gbm_device(render_node) {
+            Some(gbm) => {
+                tracing::info!("Successfully created GBM device");
+                gbm
+            }
+            None => {
+                tracing::error!("Failed to create GBM device for render_node: {:?}", render_node);
+                tracing::error!("GBM device creation failed. Possible causes:");
+                tracing::error!("  - DRM device file does not exist: {:?}", render_node.dev_path());
+                tracing::error!("  - Permission denied (try running with sudo or add user to 'video' group)");
+                tracing::error!("  - DRM device is busy or already in use");
+                tracing::error!("  - Hardware does not support GBM");
+                return None;
+            }
+        };
         let allocator = GbmAllocator::new(gbm, GbmBufferFlags::RENDERING);
         let mut dma_allocator = DmabufAllocator(allocator);
 
+        // Check supported formats and modifiers
+        tracing::debug!("Checking supported formats and modifiers...");
+        
         let modifiers = [drm_modifier];
+        tracing::debug!("Attempting to create buffer with modifiers: {:?}", modifiers);
+        
         let mut result = dma_allocator.create_buffer(
             video_info.width(),
             video_info.height(),
@@ -105,14 +161,44 @@ impl GsDmaBuf {
                 &[drm_modifier],
             );
         }
+        
+        // If still failing, try with linear modifier as last resort
+        if result.is_err() {
+            tracing::warn!("Failed to create buffer with modifier {:?}, trying linear modifier", drm_modifier);
+            let linear_modifier = DrmModifier::Invalid; // Linear modifier is represented as Invalid
+            result = dma_allocator.create_buffer(
+                video_info.width(),
+                video_info.height(),
+                drm_fourcc,
+                &[linear_modifier],
+            );
+            if result.is_ok() {
+                tracing::info!("Successfully created buffer with linear modifier");
+            }
+        }
 
         match result {
-            Ok(buffer) => Some(GsDmaBuf {
-                buffer,
-                video_info,
-                gst_allocator: DmaBufAllocator::new(),
-            }),
-            Err(_) => None,
+            Ok(buffer) => {
+                tracing::info!("Successfully created DMA buffer");
+                Some(GsDmaBuf {
+                    buffer,
+                    video_info,
+                    gst_allocator: DmaBufAllocator::new(),
+                })
+            }
+            Err(e) => {
+                tracing::error!("Failed to create DMA buffer with allocator");
+                tracing::error!("Buffer creation error: {:?}", e);
+                tracing::error!("Parameters used:");
+                tracing::error!("  - Size: {}x{}", video_info.width(), video_info.height());
+                tracing::error!("  - Format: {:?}", drm_fourcc);
+                tracing::error!("  - Modifier: {:?}", drm_modifier);
+                tracing::error!("This usually indicates:");
+                tracing::error!("  - Hardware does not support the requested format/modifier combination");
+                tracing::error!("  - Insufficient memory for buffer allocation");
+                tracing::error!("  - DRM driver limitations");
+                None
+            }
         }
     }
 }

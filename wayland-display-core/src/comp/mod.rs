@@ -333,9 +333,22 @@ pub(crate) fn init(
                                 state.output_buffer = Some(GsBufferType::RAW(allocator));
                             }
                             GstVideoInfo::DMA(base_info) => {
-                                let allocator = GsDmaBuf::new(render_node.unwrap(), base_info)
-                                    .expect("Failed to create GsDmaBuf");
-                                state.output_buffer = Some(GsBufferType::DMA(allocator));
+                                match GsDmaBuf::new(render_node.unwrap(), base_info) {
+                                    Some(allocator) => {
+                                        tracing::info!("Successfully created DMA buffer");
+                                        state.output_buffer = Some(GsBufferType::DMA(allocator));
+                                    }
+                                    None => {
+                                        tracing::error!("Failed to create DMA buffer for render_node: {:?}", render_node.unwrap());
+                                        tracing::error!("DMA buffer creation failed. This usually indicates:");
+                                        tracing::error!("  1. DRM device file does not exist or cannot be opened");
+                                        tracing::error!("  2. Insufficient permissions to access the DRM device");
+                                        tracing::error!("  3. DRM device is already in use by another process");
+                                        tracing::error!("  4. GBM library cannot initialize with the DRM device");
+                                        tracing::error!("  5. Hardware does not support the requested format/modifier");
+                                        panic!("DMA buffer creation failed - see error logs above for details");
+                                    }
+                                }
                             }
                         },
                         RenderTarget::Software => {
