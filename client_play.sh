@@ -104,7 +104,7 @@ play_tcp_gstreamer() {
     echo -e "${BLUE}解码器: ${decoder}${NC}"
     echo ""
     
-    gst-launch-1.0 tcpclientsrc host=${server_ip} port=${TCP_PORT} ! \
+    gst-launch-1.0 tcpclientsrc host=${server_ip} port=${TCP_PORT} timeout=5000000000 retry=3 ! \
         application/x-rtp,encoding-name=H264,payload=96 ! \
         rtph264depay ! \
         h264parse ! \

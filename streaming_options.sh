@@ -100,7 +100,7 @@ start_tcp_stream() {
         h264parse ! \
         rtph264pay ! \
         queue ! \
-        tcpserversink host=${HOST} port=${TCP_PORT} &
+        tcpserversink host=${HOST} port=${TCP_PORT} protocol=none &
     
     echo -e "${GREEN}TCP 流已启动，PID: $!${NC}"
 }

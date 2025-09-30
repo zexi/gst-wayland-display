@@ -49,6 +49,8 @@ pub struct GsDmaBuf {
 }
 
 pub fn new_gbm_device(render_node: DrmNode) -> Option<GbmDevice<DeviceFd>> {
+    println!("=== render_node: {:?}", render_node);
+    println!("=== render_node.dev_path(): {:?}", render_node.dev_path());
     let file = File::options()
         .read(true)
         .write(true)
