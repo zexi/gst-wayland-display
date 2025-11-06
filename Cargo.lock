@@ -1397,6 +1397,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-display"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
+ "wayland-display-core",
+]
+
+[[package]]
 name = "test-log"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"

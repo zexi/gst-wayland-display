@@ -1,0 +1,11 @@
+[package]
+name = "test-display"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Test program for WaylandDisplay"
+
+[dependencies]
+wayland-display-core = { path = "../wayland-display-core" }
+tracing-subscriber = "0.3"
+tracing.workspace = true

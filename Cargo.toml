@@ -4,7 +4,8 @@ members = [
     ".",
     "c-bindings",
     "wayland-display-core",
-    "gst-plugin-wayland-display"
+    "gst-plugin-wayland-display",
+    "test-display",
 ]
 
 [workspace.dependencies]
