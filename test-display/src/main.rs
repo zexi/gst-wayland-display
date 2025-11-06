@@ -6,7 +6,8 @@ fn main() {
     tracing_subscriber::fmt::try_init().ok();
 
     // 设置 render_node（可以是 None 或 Some(String)）
-    let render_node = None; // 或者 Some("/dev/dri/renderD128".to_string())
+    // let render_node = None; // 或者 Some("/dev/dri/renderD128".to_string())
+    let render_node = Some("/dev/dri/renderD128".to_string());
 
     // 执行原代码的核心逻辑（对应原代码第24-30行）
     match WaylandDisplay::new(render_node) {
