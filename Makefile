@@ -1,4 +1,4 @@
-TAG := build-env.1
+TAG := build-env.2
 
 image:
 	docker buildx build --platform linux/amd64 --push \
