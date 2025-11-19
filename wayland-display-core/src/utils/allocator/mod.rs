@@ -58,6 +58,7 @@ pub struct GsDmaBuf {
 }
 
 pub fn new_gbm_device(render_node: DrmNode) -> Option<GbmDevice<DeviceFd>> {
+    tracing::debug!("Creating GBM device from {:?}", &render_node);
     let file = File::options()
         .read(true)
         .write(true)
@@ -158,9 +159,10 @@ impl GsCUDABuf {
         let drm_fourcc = gst_video_format_to_drm_fourcc(&video_info)?;
         let drm_modifier = gst_video_format_to_drm_modifier(&video_info)?;
         tracing::info!(
-            "Creating CUDA buffer - DrmFourcc: {:?}, Modifier: {:?}",
+            "Creating CUDA buffer - DrmFourcc: {:?}, Modifier: {:?}, render_node: {:?}",
             drm_fourcc,
-            drm_modifier
+            drm_modifier,
+            render_node
         );
         let gbm = new_gbm_device(render_node)?;
         let allocator = GbmAllocator::new(gbm, GbmBufferFlags::RENDERING);
